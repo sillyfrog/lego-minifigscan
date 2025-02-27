@@ -30,7 +30,24 @@ function docReady(fn) {
     document.addEventListener("DOMContentLoaded", fn);
   }
 }
-function startScanning(facingMode) {
+
+function listCameras() {
+  return Html5Qrcode.getCameras().then(devices => {
+    if (devices && devices.length) {
+      var cameraSelect = document.getElementById('camera-select');
+      devices.forEach(device => {
+        var option = document.createElement('option');
+        option.value = device.id;
+        option.text = device.label;
+        cameraSelect.appendChild(option);
+      });
+    }
+  }).catch(err => {
+    console.error("Error listing cameras", err);
+  });
+}
+
+function startScanning(cameraId) {
   var results = document.getElementById('scanned-result');
   var lastMessage;
 
@@ -77,8 +94,15 @@ function startScanning(facingMode) {
     });
   }, 2000);
 
+  var constraints = {};
+  if (cameraId == "environment") {
+    constraints = { facingMode: "environment" };
+  } else {
+    constraints = { deviceId: { exact: cameraId } };
+  }
+
   return html5qrcode.start(
-    { facingMode: facingMode },
+    constraints,
     { fps: 10, qrbox: { width: 150, height: 150 }, aspectRatio: 1 },
     onScanSuccess);
 }
@@ -87,15 +111,18 @@ function stopScanning() {
 }
 docReady(function () {
   hljs.initHighlightingOnLoad();
+  listCameras();
   var button = document.getElementById('start');
   button.addEventListener('click', function () {
+    var cameraSelect = document.getElementById('camera-select');
+    var selectedCameraId = cameraSelect.value;
     if (!scanning) {
       button.disabled = true;
       changeButton('starting');
       //document.getElementById('prices').style.display = "none";
       document.getElementById('reader').style.height = "auto";
       document.getElementById('reader').style.backgroundImage = "url('images/intro.png')";
-      startScanning("environment")
+      startScanning(selectedCameraId)
         .then(_ => {
           scanning = true;
           changeButton('stop');
